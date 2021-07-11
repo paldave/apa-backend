@@ -5,9 +5,9 @@ import (
 )
 
 type Service interface {
-	Create(*UserDTO) (entity.User, error)
+	Create(*userDTO) (*entity.User, error)
 	Exists(email string) (bool, error)
-	FindByEmail(email string) (entity.User, error)
+	FindByEmail(email string) (*entity.User, error)
 }
 
 type Securer interface {
@@ -19,30 +19,30 @@ type service struct {
 	sec  Securer
 }
 
-func NewService(repo Repository, sec Securer) Service {
-	return service{repo, sec}
+func NewService(repo Repository, sec Securer) *service {
+	return &service{repo, sec}
 }
 
-func (s service) Create(req *UserDTO) (entity.User, error) {
-	new := entity.User{
+func (s *service) Create(req *userDTO) (*entity.User, error) {
+	u := &entity.User{
 		Id:       entity.GenerateBaseId(),
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: s.sec.Hash(req.Password),
 	}
 
-	err := s.repo.Create(new)
+	err := s.repo.Create(u)
 	if err != nil {
-		return entity.User{}, err
+		return nil, err
 	}
 
-	return new, nil
+	return u, nil
 }
 
-func (s service) Exists(email string) (bool, error) {
+func (s *service) Exists(email string) (bool, error) {
 	return s.repo.Exists(email)
 }
 
-func (s service) FindByEmail(email string) (entity.User, error) {
+func (s *service) FindByEmail(email string) (*entity.User, error) {
 	return s.repo.FindByEmail(email)
 }
