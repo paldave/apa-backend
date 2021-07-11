@@ -6,6 +6,7 @@ import (
 
 type Config struct {
 	DBUrl             string `mapstructure:"DB_URL"`
+	RedisUrl          string `mapstructure:"REDIS_URL"`
 	JWTExpireHours    int    `mapstructure:"JWT_EXPIRE_HOURS"`
 	JWTIssuer         string `mapstructure:"JWT_ISSUER"`
 	JWTTokenSignature string `mapstructure:"JWT_TOKEN_SIGNATURE"`

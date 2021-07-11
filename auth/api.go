@@ -6,28 +6,28 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func RegisterHandlers(r *echo.Group, service Service) {
-	res := resource{service}
-
-	r.POST("/login", res.login)
-}
-
 type resource struct {
 	service Service
 }
 
-type LoginDTO struct {
+type loginDTO struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
 }
 
-func (r resource) login(c echo.Context) error {
-	req := new(LoginDTO)
+func RegisterHandlers(r *echo.Group, service Service) {
+	res := &resource{service}
+
+	r.POST("/login", res.login)
+}
+
+func (r *resource) login(c echo.Context) error {
+	req := new(loginDTO)
 	if err := c.Bind(req); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	t, err := r.service.Authenticate(req.Email, req.Password)
+	t, err := r.service.Authenticate(req)
 	if err != nil {
 		return echo.ErrUnauthorized
 	}

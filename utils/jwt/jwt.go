@@ -1,14 +1,9 @@
 package jwt
 
 import (
-	"time"
-
 	jwtgo "github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 )
-
-type JWT interface {
-	Generate(id string, email string, isAdmin bool) (string, error)
-}
 
 type jwt struct {
 	ExpiresAt int64
@@ -16,33 +11,61 @@ type jwt struct {
 	Signature string
 }
 
-type Claim struct {
+type AccessClaim struct {
 	Id      string
+	UserId  string
 	Email   string
 	IsAdmin bool
 	jwtgo.StandardClaims
 }
 
-func NewJWT(expire int, issuer string, signature string) JWT {
-	return jwt{
-		ExpiresAt: time.Now().Add(time.Hour * time.Duration(expire)).Unix(),
+type RefreshClaim struct {
+	Id     string
+	UserId string
+	jwtgo.StandardClaims
+}
+
+func NewJWT(issuer string, signature string) *jwt {
+	return &jwt{
 		Issuer:    issuer,
 		Signature: signature,
 	}
 }
 
-func (j jwt) Generate(id string, email string, isAdmin bool) (string, error) {
-	claims := &Claim{
+func (j *jwt) Sign(claims jwtgo.Claims) (string, error) {
+	token := jwtgo.NewWithClaims(jwtgo.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte(j.Signature))
+	return signedToken, err
+}
+
+func (j *jwt) GenerateAccessToken(expiry int64, userId, email string, isAdmin bool) (string, string, error) {
+	id := uuid.NewString()
+	claims := &AccessClaim{
 		Id:      id,
+		UserId:  userId,
 		Email:   email,
 		IsAdmin: isAdmin,
 		StandardClaims: jwtgo.StandardClaims{
-			ExpiresAt: j.ExpiresAt,
+			ExpiresAt: expiry,
 			Issuer:    j.Issuer,
 		},
 	}
 
-	token := jwtgo.NewWithClaims(jwtgo.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString([]byte(j.Signature))
-	return signedToken, err
+	token, err := j.Sign(claims)
+	return id, token, err
+}
+
+func (j *jwt) GenerateRefreshToken(expiry int64, userId string) (string, string, error) {
+	id := uuid.NewString()
+	claims := &AccessClaim{
+		Id:     id,
+		UserId: userId,
+		StandardClaims: jwtgo.StandardClaims{
+			ExpiresAt: expiry,
+			Issuer:    j.Issuer,
+		},
+	}
+
+	token, err := j.Sign(claims)
+	return id, token, err
 }

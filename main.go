@@ -21,14 +21,17 @@ func main() {
 	r := router.New()
 	v1 := r.Group("/v1")
 
+	rdb := db.NewRedis(config.RedisUrl)
 	db := db.NewDb(config.DBUrl)
+
 	sec := secure.NewSecurer()
-	jwt := jwt.NewJWT(config.JWTExpireHours, config.JWTIssuer, config.JWTTokenSignature)
+	jwt := jwt.NewJWT(config.JWTIssuer, config.JWTTokenSignature)
 
 	userRepo := user.NewRepository(db)
 	user.RegisterHandlers(v1, user.NewService(userRepo, sec))
 
-	auth.RegisterHandlers(v1.Group("/auth"), auth.NewService(userRepo, sec, jwt))
+	authRepo := auth.NewRepository(rdb)
+	auth.RegisterHandlers(v1.Group("/auth"), auth.NewService(userRepo, authRepo, sec, jwt))
 
 	r.Logger.Fatal(r.Start(":8001"))
 }
