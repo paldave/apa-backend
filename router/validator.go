@@ -33,10 +33,10 @@ func NewValidator(e *echo.Echo) *CustomValidator {
 		e.Logger.Fatal(err)
 	}
 
-	cv := CustomValidator{Validator: v, Trans: trans}
+	cv := &CustomValidator{Validator: v, Trans: trans}
 	cv.InitTranslations()
 
-	return &cv
+	return cv
 }
 
 func (cv *CustomValidator) InitTranslations() {

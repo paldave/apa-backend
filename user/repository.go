@@ -7,25 +7,25 @@ import (
 )
 
 type Repository interface {
-	Create(user entity.User) error
+	Create(*entity.User) error
 	Exists(email string) (bool, error)
-	FindByEmail(email string) (entity.User, error)
+	FindByEmail(email string) (*entity.User, error)
 }
 
 type repository struct {
 	db *pg.DB
 }
 
-func NewRepository(db *pg.DB) Repository {
-	return repository{db}
+func NewRepository(db *pg.DB) *repository {
+	return &repository{db}
 }
 
-func (r repository) Create(user entity.User) error {
-	_, err := r.db.Model(&user).Insert()
+func (r *repository) Create(user *entity.User) error {
+	_, err := r.db.Model(user).Insert()
 	return err
 }
 
-func (r repository) Exists(email string) (bool, error) {
+func (r *repository) Exists(email string) (bool, error) {
 	var user entity.User
 	count, err := r.db.Model(&user).
 		Where("email = ?", email).
@@ -34,11 +34,11 @@ func (r repository) Exists(email string) (bool, error) {
 	return count > 0, err
 }
 
-func (r repository) FindByEmail(email string) (entity.User, error) {
+func (r *repository) FindByEmail(email string) (*entity.User, error) {
 	var user entity.User
 	err := r.db.Model(&user).
 		Where("email = ?", email).
 		Limit(1).
 		Select()
-	return user, err
+	return &user, err
 }
