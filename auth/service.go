@@ -3,56 +3,85 @@ package auth
 import (
 	"apa-backend/entity"
 	"errors"
-
-	"github.com/google/uuid"
+	"time"
 )
 
 type Service interface {
-	Authenticate(email string, passwd string) (entity.AuthToken, error)
+	Authenticate(*loginDTO) (*entity.AuthToken, error)
 }
 
-type Repository interface {
-	FindByEmail(email string) (entity.User, error)
+type UserRepository interface {
+	FindByEmail(string) (*entity.User, error)
 }
 
 type Securer interface {
 	Hash(p string) string
-	Compare(hash string, p string) bool
+	Compare(hash, p string) bool
 }
 
 type JWT interface {
-	Generate(id string, email string, isAdmin bool) (string, error)
+	GenerateAccessToken(expiry int64, userId, email string, isAdmin bool) (string, string, error)
+	GenerateRefreshToken(expiry int64, userId string) (string, string, error)
 }
 
 type service struct {
-	repo Repository
-	sec  Securer
-	jwt  JWT
+	ur  UserRepository
+	r   Repository
+	sec Securer
+	jwt JWT
 }
 
-func NewService(repo Repository, sec Securer, jwt JWT) Service {
-	return service{repo, sec, jwt}
+func NewService(ur UserRepository, r Repository, sec Securer, jwt JWT) *service {
+	return &service{ur, r, sec, jwt}
 }
 
-func (s service) Authenticate(email string, passwd string) (entity.AuthToken, error) {
-	u, err := s.repo.FindByEmail(email)
+func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
+	var ent = &entity.AuthToken{}
+
+	u, err := s.ur.FindByEmail(req.Email)
 	if err != nil {
-		return entity.AuthToken{}, err
+		return ent, err
 	}
 
-	if !s.sec.Compare(u.Password, passwd) {
-		return entity.AuthToken{}, errors.New("")
+	if !s.sec.Compare(u.Password, req.Password) {
+		return ent, errors.New("")
 	}
+
+	atExpiry := time.Now().Add(time.Minute * 15).Unix()
+	rtExpiry := time.Now().Add(time.Hour * 24 * 7).Unix()
 
 	/*
 	 * TODO
 	 * Implement proper ACL / Grouping
 	 * Remove hardcoded boolean isAdmin pass
 	 */
-	t, err := s.jwt.Generate(uuid.New().String(), u.Email, true)
+	aId, at, err := s.jwt.GenerateAccessToken(atExpiry, u.Id, u.Email, true)
 	if err != nil {
-		return entity.AuthToken{}, errors.New("")
+		return ent, errors.New("")
 	}
 
-	return entity.AuthToken{Token: t}, nil
+	if err = s.r.Create(&entity.RedisToken{
+		Id:     aId,
+		UserId: u.Id,
+		Expiry: atExpiry,
+	}); err != nil {
+		return ent, errors.New("")
+	}
+
+	rId, rt, err := s.jwt.GenerateRefreshToken(rtExpiry, u.Id)
+	if err != nil {
+		return ent, errors.New("")
+	}
+
+	if err = s.r.Create(&entity.RedisToken{
+		Id:     rId,
+		UserId: u.Id,
+		Expiry: rtExpiry,
+	}); err != nil {
+		return ent, errors.New("")
+	}
+
+	ent.AccessToken = at
+	ent.RefreshToken = rt
+	return ent, nil
 }
