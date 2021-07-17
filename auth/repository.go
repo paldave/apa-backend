@@ -11,6 +11,7 @@ import (
 
 type Repository interface {
 	Create(*entity.RedisToken) error
+	Exists(tokenId string, userId string) (bool, error)
 }
 
 type repository struct {
@@ -33,4 +34,15 @@ func (r *repository) Create(t *entity.RedisToken) error {
 	}
 
 	return nil
+}
+
+func (r *repository) Exists(tokenId string, userId string) (bool, error) {
+	str := fmt.Sprintf("%s:%s", userId, tokenId)
+
+	err := r.rdb.Get(context.TODO(), str).Err()
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

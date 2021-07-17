@@ -11,7 +11,7 @@ type jwt struct {
 	Signature string
 }
 
-type AccessClaim struct {
+type AccessClaims struct {
 	Id      string
 	UserId  string
 	Email   string
@@ -19,7 +19,7 @@ type AccessClaim struct {
 	jwtgo.StandardClaims
 }
 
-type RefreshClaim struct {
+type RefreshClaims struct {
 	Id     string
 	UserId string
 	jwtgo.StandardClaims
@@ -40,7 +40,7 @@ func (j *jwt) Sign(claims jwtgo.Claims) (string, error) {
 
 func (j *jwt) GenerateAccessToken(expiry int64, userId, email string, isAdmin bool) (string, string, error) {
 	id := uuid.NewString()
-	claims := &AccessClaim{
+	claims := &AccessClaims{
 		Id:      id,
 		UserId:  userId,
 		Email:   email,
@@ -57,7 +57,7 @@ func (j *jwt) GenerateAccessToken(expiry int64, userId, email string, isAdmin bo
 
 func (j *jwt) GenerateRefreshToken(expiry int64, userId string) (string, string, error) {
 	id := uuid.NewString()
-	claims := &AccessClaim{
+	claims := &AccessClaims{
 		Id:     id,
 		UserId: userId,
 		StandardClaims: jwtgo.StandardClaims{
@@ -68,4 +68,13 @@ func (j *jwt) GenerateRefreshToken(expiry int64, userId string) (string, string,
 
 	token, err := j.Sign(claims)
 	return id, token, err
+}
+
+func (j *jwt) Validate(token string) (*jwtgo.Token, jwtgo.MapClaims, error) {
+	claims := jwtgo.MapClaims{}
+	t, err := jwtgo.ParseWithClaims(token, claims, func(token *jwtgo.Token) (interface{}, error) {
+		return []byte(j.Signature), nil
+	})
+
+	return t, claims, err
 }
