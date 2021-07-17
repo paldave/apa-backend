@@ -31,7 +31,7 @@ func main() {
 	user.RegisterHandlers(v1, user.NewService(userRepo, sec))
 
 	authRepo := auth.NewRepository(rdb)
-	auth.RegisterHandlers(v1.Group("/auth"), auth.NewService(userRepo, authRepo, sec, jwt))
+	auth.RegisterHandlers(v1.Group("/auth"), auth.Middleware(authRepo, jwt), auth.NewService(userRepo, authRepo, sec, jwt))
 
 	r.Logger.Fatal(r.Start(":8001"))
 }
