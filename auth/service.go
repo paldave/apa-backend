@@ -4,6 +4,8 @@ import (
 	"apa-backend/entity"
 	"errors"
 	"time"
+
+	jwtgo "github.com/dgrijalva/jwt-go"
 )
 
 type Service interface {
@@ -22,6 +24,7 @@ type Securer interface {
 type JWT interface {
 	GenerateAccessToken(expiry int64, userId, email string, isAdmin bool) (string, string, error)
 	GenerateRefreshToken(expiry int64, userId string) (string, string, error)
+	Validate(token string) (*jwtgo.Token, jwtgo.MapClaims, error)
 }
 
 type service struct {
@@ -47,7 +50,7 @@ func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
 		return ent, errors.New("")
 	}
 
-	atExpiry := time.Now().Add(time.Minute * 15).Unix()
+	atExpiry := time.Now().Add(time.Minute * 60).Unix()
 	rtExpiry := time.Now().Add(time.Hour * 24 * 7).Unix()
 
 	/*
