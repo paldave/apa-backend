@@ -11,7 +11,8 @@ import (
 
 type Repository interface {
 	Create(*entity.RedisToken) error
-	Exists(tokenId string, userId string) (bool, error)
+	Exists(tokenId, userId string) (bool, error)
+	Delete(tokenId, userId string) error
 }
 
 type repository struct {
@@ -22,11 +23,15 @@ func NewRepository(rdb *redis.Client) *repository {
 	return &repository{rdb}
 }
 
+func buildString(tId, uId string) string {
+	return fmt.Sprintf("%s:%s", uId, tId)
+}
+
 func (r *repository) Create(t *entity.RedisToken) error {
 	utc := time.Unix(t.Expiry, 0)
 	now := time.Now()
 
-	str := fmt.Sprintf("%s:%s", t.UserId, t.Id)
+	str := buildString(t.Id, t.UserId)
 
 	err := r.rdb.Set(context.TODO(), str, 1, utc.Sub(now)).Err()
 	if err != nil {
@@ -36,8 +41,8 @@ func (r *repository) Create(t *entity.RedisToken) error {
 	return nil
 }
 
-func (r *repository) Exists(tokenId string, userId string) (bool, error) {
-	str := fmt.Sprintf("%s:%s", userId, tokenId)
+func (r *repository) Exists(tokenId, userId string) (bool, error) {
+	str := buildString(tokenId, userId)
 
 	err := r.rdb.Get(context.TODO(), str).Err()
 	if err != nil {
@@ -45,4 +50,14 @@ func (r *repository) Exists(tokenId string, userId string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (r *repository) Delete(tokenId, userId string) error {
+	str := buildString(tokenId, userId)
+
+	if err := r.rdb.Del(context.TODO(), str).Err(); err != nil {
+		return err
+	}
+
+	return nil
 }
