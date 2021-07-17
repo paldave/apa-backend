@@ -10,6 +10,7 @@ import (
 
 type Service interface {
 	Authenticate(*loginDTO) (*entity.AuthToken, error)
+	Logout(tokenId, userId string) error
 }
 
 type UserRepository interface {
@@ -50,7 +51,7 @@ func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
 		return ent, errors.New("")
 	}
 
-	atExpiry := time.Now().Add(time.Minute * 60).Unix()
+	atExpiry := time.Now().Add(time.Minute * 15).Unix()
 	rtExpiry := time.Now().Add(time.Hour * 24 * 7).Unix()
 
 	/*
@@ -87,4 +88,8 @@ func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
 	ent.AccessToken = at
 	ent.RefreshToken = rt
 	return ent, nil
+}
+
+func (s *service) Logout(tokenId, userId string) error {
+	return s.r.Delete(tokenId, userId)
 }
