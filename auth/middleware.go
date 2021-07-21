@@ -37,6 +37,7 @@ func Middleware(r Repository, j JWT) echo.MiddlewareFunc {
 				c.Set("authIsAdmin", claims["IsAdmin"])
 				c.Set("authUserId", claims["UserId"])
 				c.Set("authTokenId", claims["Id"])
+				c.Set("authRefreshId", claims["RefreshId"])
 
 				return next(c)
 			}

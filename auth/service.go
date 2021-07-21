@@ -8,7 +8,7 @@ import (
 
 type Service interface {
 	Authenticate(*loginDTO) (*entity.AuthToken, error)
-	Logout(tokenId, userId string) error
+	Logout(tokenId, refreshId, userId string) error
 }
 
 type UserRepository interface {
@@ -99,6 +99,14 @@ func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
 	return AuthToken, nil
 }
 
-func (s *service) Logout(tokenId, userId string) error {
-	return s.r.Delete(tokenId, userId)
+func (s *service) Logout(tokenId, refreshId, userId string) error {
+	if err := s.r.Delete(tokenId, userId); err != nil {
+		return err
+	}
+
+	if err := s.r.Delete(refreshId, userId); err != nil {
+		return err
+	}
+
+	return nil
 }
