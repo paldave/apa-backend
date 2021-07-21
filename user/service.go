@@ -8,6 +8,7 @@ type Service interface {
 	Create(*userDTO) (*entity.User, error)
 	Exists(email string) (bool, error)
 	FindByEmail(email string) (*entity.User, error)
+	FindById(id string) (*entity.User, error)
 }
 
 type Securer interface {
@@ -45,4 +46,8 @@ func (s *service) Exists(email string) (bool, error) {
 
 func (s *service) FindByEmail(email string) (*entity.User, error) {
 	return s.repo.FindByEmail(email)
+}
+
+func (s *service) FindById(id string) (*entity.User, error) {
+	return s.repo.FindById(id)
 }

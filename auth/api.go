@@ -20,6 +20,7 @@ func RegisterHandlers(r *echo.Group, middleware echo.MiddlewareFunc, service Ser
 
 	r.POST("/login", res.login)
 	r.POST("/logout", res.logout, middleware)
+	r.POST("/refresh", res.refresh)
 }
 
 func (r *resource) login(c echo.Context) error {
@@ -48,4 +49,20 @@ func (r *resource) logout(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{})
+}
+
+func (r *resource) refresh(c echo.Context) error {
+	cookie, err := c.Cookie("refreshToken")
+	if err != nil {
+		return echo.ErrUnauthorized
+	}
+
+	t, err := r.service.AuthenticateRefresh(cookie.Value)
+	if err != nil {
+		return echo.ErrUnauthorized
+	}
+
+	c.SetCookie(r.service.RefreshCookie(t.RefreshToken))
+
+	return c.JSON(http.StatusOK, t)
 }
