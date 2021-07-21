@@ -3,11 +3,13 @@ package auth
 import (
 	"apa-backend/entity"
 	"errors"
+	"net/http"
 	"time"
 )
 
 type Service interface {
 	Authenticate(*loginDTO) (*entity.AuthToken, error)
+	RefreshCookie(token string) *http.Cookie
 	Logout(tokenId, refreshId, userId string) error
 }
 
@@ -97,6 +99,16 @@ func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
 	AuthToken.AccessToken = at
 	AuthToken.RefreshToken = rt
 	return AuthToken, nil
+}
+
+func (s *service) RefreshCookie(token string) *http.Cookie {
+	cookie := new(http.Cookie)
+	cookie.Name = "refreshToken"
+	cookie.Value = token
+	cookie.Expires = time.Now().Add(time.Hour * 24 * 7)
+	cookie.HttpOnly = true
+
+	return cookie
 }
 
 func (s *service) Logout(tokenId, refreshId, userId string) error {
