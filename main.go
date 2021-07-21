@@ -8,7 +8,6 @@ import (
 	"apa-backend/user"
 	"log"
 
-	"apa-backend/utils/jwt"
 	"apa-backend/utils/secure"
 )
 
@@ -25,7 +24,7 @@ func main() {
 	db := db.NewDb(config.DBUrl)
 
 	sec := secure.NewSecurer()
-	jwt := jwt.NewJWT(config.JWTIssuer, config.JWTTokenSignature)
+	jwt := auth.NewJWT(config.JWTIssuer, config.JWTTokenSignature)
 
 	userRepo := user.NewRepository(db)
 	user.RegisterHandlers(v1, user.NewService(userRepo, sec))
