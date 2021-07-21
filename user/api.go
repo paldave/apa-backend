@@ -26,7 +26,7 @@ func RegisterHandlers(r *echo.Group, service Service) {
 func (r resource) create(c echo.Context) error {
 	u := new(userDTO)
 	if err := c.Bind(u); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.ErrInternalServerError
 	}
 
 	exists, err := r.service.Exists(u.Email)
@@ -34,12 +34,12 @@ func (r resource) create(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnprocessableEntity, "This email address is already being used.")
 	}
 	if err != nil && err != pg.ErrNoRows {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.ErrInternalServerError
 	}
 
 	_, err = r.service.Create(u)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.ErrInternalServerError
 	}
 
 	return c.JSON(http.StatusOK, u)
