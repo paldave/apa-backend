@@ -33,6 +33,8 @@ func (r *resource) login(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
+	c.SetCookie(r.service.RefreshCookie(t.RefreshToken))
+
 	return c.JSON(http.StatusOK, t)
 }
 
