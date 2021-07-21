@@ -4,8 +4,6 @@ import (
 	"apa-backend/entity"
 	"errors"
 	"time"
-
-	jwtgo "github.com/dgrijalva/jwt-go"
 )
 
 type Service interface {
@@ -22,12 +20,6 @@ type Securer interface {
 	Compare(hash, p string) bool
 }
 
-type JWT interface {
-	GenerateAccessToken(expiry int64, userId, email string, isAdmin bool) (string, string, error)
-	GenerateRefreshToken(expiry int64, userId string) (string, string, error)
-	Validate(token string) (*jwtgo.Token, jwtgo.MapClaims, error)
-}
-
 type service struct {
 	ur  UserRepository
 	r   Repository
@@ -40,54 +32,71 @@ func NewService(ur UserRepository, r Repository, sec Securer, jwt JWT) *service 
 }
 
 func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
-	var ent = &entity.AuthToken{}
+	var AuthToken = &entity.AuthToken{}
 
 	u, err := s.ur.FindByEmail(req.Email)
 	if err != nil {
-		return ent, err
+		return AuthToken, err
 	}
 
 	if !s.sec.Compare(u.Password, req.Password) {
-		return ent, errors.New("")
+		return AuthToken, errors.New("")
 	}
 
-	atExpiry := time.Now().Add(time.Minute * 15).Unix()
-	rtExpiry := time.Now().Add(time.Hour * 24 * 7).Unix()
+	aId := entity.GenerateUuid()
+	rId := entity.GenerateUuid()
+	aExpiry := time.Now().Add(time.Minute * 60).Unix()
+	rExpiry := time.Now().Add(time.Hour * 24 * 7).Unix()
+
+	aDTO := &AccessDTO{
+		Id:        aId,
+		RefreshId: rId,
+		UserId:    u.Id,
+		Email:     u.Email,
+		IsAdmin:   true, // TODO
+		Expiry:    aExpiry,
+	}
+
+	rDTO := &RefreshDTO{
+		Id:       rId,
+		AccessId: aId,
+		UserId:   u.Id,
+		Expiry:   rExpiry,
+	}
 
 	/*
 	 * TODO
 	 * Implement proper ACL / Grouping
-	 * Remove hardcoded boolean isAdmin pass
 	 */
-	aId, at, err := s.jwt.GenerateAccessToken(atExpiry, u.Id, u.Email, true)
+	at, err := s.jwt.GenerateAccessToken(aDTO)
 	if err != nil {
-		return ent, errors.New("")
+		return AuthToken, errors.New("")
 	}
 
 	if err = s.r.Create(&entity.RedisToken{
 		Id:     aId,
 		UserId: u.Id,
-		Expiry: atExpiry,
+		Expiry: aExpiry,
 	}); err != nil {
-		return ent, errors.New("")
+		return AuthToken, errors.New("")
 	}
 
-	rId, rt, err := s.jwt.GenerateRefreshToken(rtExpiry, u.Id)
+	rt, err := s.jwt.GenerateRefreshToken(rDTO)
 	if err != nil {
-		return ent, errors.New("")
+		return AuthToken, errors.New("")
 	}
 
 	if err = s.r.Create(&entity.RedisToken{
 		Id:     rId,
 		UserId: u.Id,
-		Expiry: rtExpiry,
+		Expiry: rExpiry,
 	}); err != nil {
-		return ent, errors.New("")
+		return AuthToken, errors.New("")
 	}
 
-	ent.AccessToken = at
-	ent.RefreshToken = rt
-	return ent, nil
+	AuthToken.AccessToken = at
+	AuthToken.RefreshToken = rt
+	return AuthToken, nil
 }
 
 func (s *service) Logout(tokenId, userId string) error {
