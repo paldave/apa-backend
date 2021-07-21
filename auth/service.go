@@ -9,12 +9,14 @@ import (
 
 type Service interface {
 	Authenticate(*loginDTO) (*entity.AuthToken, error)
+	AuthenticateRefresh(cookie string) (*entity.AuthToken, error)
 	RefreshCookie(token string) *http.Cookie
 	Logout(tokenId, refreshId, userId string) error
 }
 
 type UserRepository interface {
 	FindByEmail(string) (*entity.User, error)
+	FindById(string) (*entity.User, error)
 }
 
 type Securer interface {
@@ -33,18 +35,7 @@ func NewService(ur UserRepository, r Repository, sec Securer, jwt JWT) *service 
 	return &service{ur, r, sec, jwt}
 }
 
-func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
-	var AuthToken = &entity.AuthToken{}
-
-	u, err := s.ur.FindByEmail(req.Email)
-	if err != nil {
-		return AuthToken, err
-	}
-
-	if !s.sec.Compare(u.Password, req.Password) {
-		return AuthToken, errors.New("")
-	}
-
+func (s *service) buildTokens(u *entity.User, AuthToken *entity.AuthToken) (*entity.AuthToken, error) {
 	aId := entity.GenerateUuid()
 	rId := entity.GenerateUuid()
 	aExpiry := time.Now().Add(time.Minute * 60).Unix()
@@ -101,11 +92,59 @@ func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
 	return AuthToken, nil
 }
 
+func (s *service) Authenticate(req *loginDTO) (*entity.AuthToken, error) {
+	var AuthToken = &entity.AuthToken{}
+
+	u, err := s.ur.FindByEmail(req.Email)
+	if err != nil {
+		return AuthToken, err
+	}
+
+	if !s.sec.Compare(u.Password, req.Password) {
+		return AuthToken, errors.New("")
+	}
+
+	return s.buildTokens(u, AuthToken)
+}
+
+func (s *service) AuthenticateRefresh(cookie string) (*entity.AuthToken, error) {
+	var AuthToken = &entity.AuthToken{}
+
+	token, claims, err := s.jwt.Validate(cookie)
+	if err != nil || !token.Valid {
+		return AuthToken, err
+	}
+
+	cId := claims["Id"].(string)
+	cAID := claims["AccessId"].(string)
+	cUID := claims["UserId"].(string)
+
+	exists, err := s.r.Exists(cId, cUID)
+	if err != nil || !exists {
+		return AuthToken, err
+	}
+
+	u, err := s.ur.FindById(cUID)
+	if err != nil {
+		return AuthToken, err
+	}
+
+	if err := s.r.Delete(cId, cUID); err != nil {
+		return AuthToken, err
+	}
+
+	if err := s.r.Delete(cAID, cUID); err != nil {
+		return AuthToken, err
+	}
+
+	return s.buildTokens(u, AuthToken)
+}
+
 func (s *service) RefreshCookie(token string) *http.Cookie {
 	cookie := new(http.Cookie)
 	cookie.Name = "refreshToken"
 	cookie.Value = token
-	cookie.Expires = time.Now().Add(time.Hour * 24 * 7)
+	// cookie.Expires = time.Now().Add(time.Hour * 24 * 7)
 	cookie.HttpOnly = true
 
 	return cookie
