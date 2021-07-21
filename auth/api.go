@@ -39,8 +39,9 @@ func (r *resource) login(c echo.Context) error {
 func (r *resource) logout(c echo.Context) error {
 	tokenId := c.Get("authTokenId").(string)
 	userId := c.Get("authUserId").(string)
+	refreshId := c.Get("authRefreshId").(string)
 
-	if err := r.service.Logout(tokenId, userId); err != nil {
+	if err := r.service.Logout(tokenId, refreshId, userId); err != nil {
 		return echo.ErrInternalServerError
 	}
 
