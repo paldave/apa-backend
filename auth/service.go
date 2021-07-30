@@ -10,7 +10,7 @@ import (
 type Service interface {
 	Authenticate(*loginDTO) (*entity.AuthToken, error)
 	AuthenticateRefresh(cookie string) (*entity.AuthToken, error)
-	RefreshCookie(token string) *http.Cookie
+	BuildCookie(name, value string) *http.Cookie
 	Logout(tokenId, refreshId, userId string) error
 }
 
@@ -38,8 +38,8 @@ func NewService(ur UserRepository, r Repository, sec Securer, jwt JWT) *service 
 func (s *service) buildTokens(u *entity.User, AuthToken *entity.AuthToken) (*entity.AuthToken, error) {
 	aId := entity.GenerateUuid()
 	rId := entity.GenerateUuid()
-	aExpiry := time.Now().Add(time.Minute * 60).Unix()
-	rExpiry := time.Now().Add(time.Hour * 24 * 7).Unix()
+	aExpiry := time.Now().Add(time.Minute * 15).Unix()
+	rExpiry := time.Now().Add(time.Hour * 24 * 2).Unix()
 
 	aDTO := &AccessDTO{
 		Id:        aId,
@@ -140,11 +140,11 @@ func (s *service) AuthenticateRefresh(cookie string) (*entity.AuthToken, error) 
 	return s.buildTokens(u, AuthToken)
 }
 
-func (s *service) RefreshCookie(token string) *http.Cookie {
+func (s *service) BuildCookie(name, value string) *http.Cookie {
 	cookie := new(http.Cookie)
-	cookie.Name = "refreshToken"
-	cookie.Value = token
-	// cookie.Expires = time.Now().Add(time.Hour * 24 * 7)
+	cookie.Name = name
+	cookie.Value = value
+	// cookie.Expires =
 	cookie.HttpOnly = true
 
 	return cookie

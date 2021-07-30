@@ -34,9 +34,10 @@ func (r *resource) login(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	c.SetCookie(r.service.RefreshCookie(t.RefreshToken))
+	c.SetCookie(r.service.BuildCookie("accessToken", t.AccessToken))
+	c.SetCookie(r.service.BuildCookie("refreshToken", t.RefreshToken))
 
-	return c.JSON(http.StatusOK, t)
+	return c.JSON(http.StatusOK, map[string]string{})
 }
 
 func (r *resource) logout(c echo.Context) error {
@@ -47,6 +48,16 @@ func (r *resource) logout(c echo.Context) error {
 	if err := r.service.Logout(tokenId, refreshId, userId); err != nil {
 		return echo.ErrInternalServerError
 	}
+
+	c.SetCookie(&http.Cookie{
+		Name:   "accessToken",
+		MaxAge: -1,
+	})
+
+	c.SetCookie(&http.Cookie{
+		Name:   "refreshToken",
+		MaxAge: -1,
+	})
 
 	return c.JSON(http.StatusOK, map[string]string{})
 }
@@ -62,7 +73,8 @@ func (r *resource) refresh(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	c.SetCookie(r.service.RefreshCookie(t.RefreshToken))
+	c.SetCookie(r.service.BuildCookie("accessToken", t.AccessToken))
+	c.SetCookie(r.service.BuildCookie("refreshToken", t.RefreshToken))
 
 	return c.JSON(http.StatusOK, t)
 }
